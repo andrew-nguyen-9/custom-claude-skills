@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>REF: Canvas Particles — creative-dev T24</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #060612; overflow: hidden; }
+  canvas { display: block; }
+
+  .ui {
+    position: fixed; top: 2.5rem; left: 3rem; pointer-events: none; z-index: 10;
+  }
+  .ui h2 {
+    font-family: Georgia, serif; font-size: clamp(1.5rem, 2.8vw, 2.2rem);
+    font-weight: 400; color: rgba(255,255,255,.82); letter-spacing: -.02em; margin-bottom: .4rem;
+  }
+  .ui p {
+    font-family: 'Courier New', monospace; font-size: .6rem;
+    letter-spacing: .2em; text-transform: uppercase; color: rgba(136,160,255,.4);
+  }
+
+  .note {
+    position: fixed; bottom: 2rem; right: 2.5rem; font-family: 'Courier New', monospace;
+    font-size: .58rem; color: rgba(255,255,255,.18); text-align: right; line-height: 1.8;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+
+<div class="ui">
+  <h2>T24 — Canvas Particles</h2>
+  <p>Mouse attracts · connections form · zero CDN</p>
+</div>
+
+<canvas id="c"></canvas>
+
+<div class="note">
+  90 particles · CONNECT_DIST 130px · MOUSE_DIST 180px<br>
+  trail fade: rgba(6,6,18,.15) overlay · damping .965<br>
+  normalized force vector · hsl(220-260, 72%, 68%)
+</div>
+
+<script>
+  const canvas = document.getElementById('c');
+  const ctx    = canvas.getContext('2d');
+
+  // Config
+  const COUNT        = 90;
+  const CONNECT_DIST = 130;
+  const MOUSE_DIST   = 180;
+  const BASE_SPEED   = 0.55;
+  const DAMPING      = 0.965;
+
+  let W, H, particles = [];
+  const mouse = { x: -9999, y: -9999 };
+
+  function resize() {
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // --- PARTICLE CLASS ---
+  class Particle {
+    constructor() {
+      this.x   = Math.random() * W;
+      this.y   = Math.random() * H;
+      this.vx  = (Math.random() - .5) * BASE_SPEED;
+      this.vy  = (Math.random() - .5) * BASE_SPEED;
+      this.r   = 1.5 + Math.random() * 1.5;
+      this.hue = 220 + Math.random() * 40; // blue range
+    }
+
+    update() {
+      // Mouse attraction (normalized direction vector)
+      const dx   = mouse.x - this.x;
+      const dy   = mouse.y - this.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (dist < MOUSE_DIST && dist > 0) {
+        const strength = (MOUSE_DIST - dist) / MOUSE_DIST * 0.045;
+        this.vx += (dx / dist) * strength;
+        this.vy += (dy / dist) * strength;
+      }
+
+      // Damping
+      this.vx *= DAMPING;
+      this.vy *= DAMPING;
+
+      // Move
+      this.x += this.vx;
+      this.y += this.vy;
+
+      // Wrap edges
+      if (this.x < 0) this.x = W;
+      if (this.x > W) this.x = 0;
+      if (this.y < 0) this.y = H;
+      if (this.y > H) this.y = 0;
+    }
+
+    draw() {
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+      ctx.fillStyle = `hsla(${this.hue}, 72%, 68%, .88)`;
+      ctx.fill();
+    }
+  }
+
+  // Init particles
+  for (let i = 0; i < COUNT; i++) particles.push(new Particle());
+
+  // Mouse tracking
+  document.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+  document.addEventListener('mouseleave', () => { mouse.x = -9999; mouse.y = -9999; });
+
+  // --- CONNECTION LINES ---
+  function drawConnections() {
+    for (let i = 0; i < particles.length; i++) {
+      for (let j = i + 1; j < particles.length; j++) {
+        const dx   = particles[i].x - particles[j].x;
+        const dy   = particles[i].y - particles[j].y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < CONNECT_DIST) {
+          const alpha = (1 - dist / CONNECT_DIST) * 0.45;
+          ctx.beginPath();
+          ctx.moveTo(particles[i].x, particles[i].y);
+          ctx.lineTo(particles[j].x, particles[j].y);
+          ctx.strokeStyle = `rgba(110, 150, 255, ${alpha})`;
+          ctx.lineWidth   = 0.6;
+          ctx.stroke();
+        }
+      }
+    }
+  }
+
+  // --- ANIMATION LOOP ---
+  function animate() {
+    // Trail fade: semi-transparent fill instead of clearRect = motion blur effect
+    ctx.fillStyle = 'rgba(6, 6, 18, 0.15)';
+    ctx.fillRect(0, 0, W, H);
+
+    drawConnections();
+    particles.forEach(p => { p.update(); p.draw(); });
+
+    requestAnimationFrame(animate);
+  }
+  animate();
+</script>
+</body>
+</html>

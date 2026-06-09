@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>REF: Three.js Particle Field — creative-dev T27</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { overflow: hidden; background: #000008; }
+  canvas { display: block; }
+
+  .ui {
+    position: fixed; bottom: 2.5rem; left: 3rem; z-index: 10;
+    pointer-events: none;
+  }
+  .ui h2 {
+    font-family: Georgia, serif; font-size: clamp(1.5rem, 3vw, 2.5rem);
+    font-weight: 400; color: rgba(255,255,255,.85); letter-spacing: -.02em;
+    margin-bottom: .4rem;
+  }
+  .ui p {
+    font-family: 'Courier New', monospace; font-size: .62rem;
+    letter-spacing: .2em; text-transform: uppercase;
+    color: rgba(255,255,255,.25);
+  }
+
+  .tag {
+    position: fixed; top: 2rem; right: 2.5rem;
+    font-family: 'Courier New', monospace; font-size: .6rem;
+    letter-spacing: .15em; text-transform: uppercase;
+    color: rgba(136,170,255,.5);
+  }
+</style>
+</head>
+<body>
+
+<div class="ui">
+  <h2>T27 — Particle Field</h2>
+  <p>Fibonacci sphere · mouse parallax · additive blend</p>
+</div>
+<div class="tag">Three.js r128</div>
+
+<script>
+  // Scene
+  const scene    = new THREE.Scene();
+  scene.fog      = new THREE.FogExp2(0x000008, 0.1);
+
+  const camera   = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, 0.1, 100);
+  camera.position.z = 3.5;
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.setClearColor(0x000008, 1);
+  document.body.appendChild(renderer.domElement);
+
+  // --- PARTICLE SPHERE ---
+  // Fibonacci (golden angle) distribution = mathematically even coverage
+  const COUNT       = 4500;
+  const goldenAngle = Math.PI * (3 - Math.sqrt(5)); // ≈ 2.399 rad
+  const pos         = new Float32Array(COUNT * 3);
+  const col         = new Float32Array(COUNT * 3);
+
+  for (let i = 0; i < COUNT; i++) {
+    const phi   = Math.acos(1 - 2 * i / COUNT);        // polar angle N→S
+    const theta = goldenAngle * i;                       // azimuthal spiral
+    const r     = 2 + (Math.random() - .5) * 0.9;       // slight scatter
+
+    pos[i*3]   = r * Math.sin(phi) * Math.cos(theta);
+    pos[i*3+1] = r * Math.sin(phi) * Math.sin(theta);
+    pos[i*3+2] = r * Math.cos(phi);
+
+    // Color: white near origin → blue outer
+    const t = Math.random();
+    col[i*3]   = .7 + .3 * (1 - t);   // R
+    col[i*3+1] = .75 + .25 * (1 - t); // G
+    col[i*3+2] = 1.0;                  // B always 1
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('color',    new THREE.BufferAttribute(col, 3));
+
+  // Two layers: glow + core (fakes bloom without EffectComposer — see T28)
+  const matGlow = new THREE.PointsMaterial({
+    size: .055, vertexColors: true, transparent: true, opacity: .13,
+    blending: THREE.AdditiveBlending, depthWrite: false
+  });
+  const matCore = new THREE.PointsMaterial({
+    size: .014, vertexColors: true, transparent: true, opacity: .9,
+    blending: THREE.AdditiveBlending, depthWrite: false
+  });
+
+  const particles = new THREE.Points(geo, matCore);
+  scene.add(new THREE.Points(geo.clone(), matGlow));
+  scene.add(particles);
+
+  // --- MOUSE PARALLAX (no OrbitControls in r128 CDN) ---
+  let targetX = 0, targetY = 0;
+  document.addEventListener('mousemove', e => {
+    targetX = (e.clientX / innerWidth  - .5) * 1.6;
+    targetY = -(e.clientY / innerHeight - .5) * 1.6;
+  });
+
+  // --- RESIZE ---
+  window.addEventListener('resize', () => {
+    camera.aspect = innerWidth / innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth, innerHeight);
+  });
+
+  // --- ANIMATION LOOP ---
+  const clock = new THREE.Clock();
+  function animate() {
+    requestAnimationFrame(animate);
+    const t = clock.getElapsedTime();
+
+    particles.rotation.y  = t * 0.04;
+    particles.rotation.x  = Math.sin(t * 0.025) * 0.08;
+
+    // Smooth camera parallax
+    camera.position.x += (targetX - camera.position.x) * 0.04;
+    camera.position.y += (targetY - camera.position.y) * 0.04;
+    camera.lookAt(scene.position);
+
+    renderer.render(scene, camera);
+  }
+  animate();
+</script>
+</body>
+</html>

@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>REF: Custom Cursor — creative-dev T02 + T15</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; cursor: none; }
+  :root { --bg: #080808; --text: #f0ede6; --accent: #ff3d6b; --dim: rgba(240,237,230,.15); }
+  body { background: var(--bg); color: var(--text); font-family: 'Helvetica Neue', Arial, sans-serif; min-height: 100vh; overflow-x: hidden; }
+
+  /* CURSOR */
+  #c-outer {
+    position: fixed; width: 36px; height: 36px; border-radius: 50%;
+    border: 1px solid rgba(240,237,230,.45); pointer-events: none; z-index: 9999;
+    transform: translate(-50%,-50%); top: 0; left: 0;
+    transition: width .3s, height .3s, border-color .3s, background-color .3s;
+  }
+  #c-dot {
+    position: fixed; width: 5px; height: 5px; border-radius: 50%;
+    background: var(--accent); pointer-events: none; z-index: 9999;
+    transform: translate(-50%,-50%); top: 0; left: 0;
+  }
+  body.hovering #c-outer {
+    width: 58px; height: 58px;
+    border-color: var(--accent);
+    background: rgba(255,61,107,.08);
+  }
+
+  /* LAYOUT */
+  .page { padding: 12vh 10vw; max-width: 1100px; }
+  .label { font-family: 'Courier New', monospace; font-size: .62rem; letter-spacing: .25em;
+    text-transform: uppercase; opacity: .35; margin-bottom: 2.5rem; }
+  h1 { font-size: clamp(2.5rem, 7vw, 6rem); font-weight: 200; letter-spacing: -.02em;
+    line-height: 1; margin-bottom: 8vh; }
+
+  /* MAGNETIC BUTTONS */
+  .btn-row { display: flex; gap: 1.25rem; flex-wrap: wrap; margin-bottom: 10vh; }
+  .mag-btn {
+    display: inline-block; padding: 1rem 2.5rem;
+    border: 1px solid rgba(240,237,230,.18); font-size: .72rem;
+    letter-spacing: .15em; text-transform: uppercase;
+    transition: border-color .3s; position: relative;
+  }
+  .mag-btn:hover { border-color: var(--accent); }
+
+  /* MAGNETIC TEXT LINKS */
+  .link-stack { display: flex; flex-direction: column; gap: .75rem; margin-bottom: 10vh; }
+  .big-link { font-size: clamp(1.8rem, 4.5vw, 3.5rem); font-weight: 300; opacity: .25;
+    transition: opacity .3s; line-height: 1; width: fit-content; }
+  .big-link:hover { opacity: 1; }
+
+  /* TILT CARDS */
+  .card-row { display: flex; gap: 1.5rem; }
+  .tilt-card { width: 200px; height: 260px; background: #1a1a1a;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Courier New', monospace; font-size: .65rem; letter-spacing: .1em;
+    opacity: .6; transform-style: preserve-3d; }
+
+  .note { margin-top: 10vh; font-family: 'Courier New', monospace; font-size: .6rem;
+    opacity: .2; line-height: 1.8; }
+</style>
+</head>
+<body>
+
+<div id="c-outer"></div>
+<div id="c-dot"></div>
+
+<div class="page">
+  <p class="label">T02 + T15 — Custom Cursor &amp; Magnetic Elements</p>
+  <h1>Move your<br>cursor.</h1>
+
+  <p class="label" style="margin-bottom:1.5rem;">Magnetic buttons (0.4 pull strength)</p>
+  <div class="btn-row">
+    <div class="mag-btn" data-magnetic>Selected Work</div>
+    <div class="mag-btn" data-magnetic>About Studio</div>
+    <div class="mag-btn" data-magnetic>Contact</div>
+  </div>
+
+  <p class="label" style="margin-bottom:1.5rem;">Magnetic text links</p>
+  <div class="link-stack">
+    <div class="big-link" data-magnetic>Work</div>
+    <div class="big-link" data-magnetic>Process</div>
+    <div class="big-link" data-magnetic>Journal</div>
+  </div>
+
+  <p class="note">
+    // outer: lerp 0.12 (lagged) — inner dot: precise sync<br>
+    // magnetic pull: 0.4 strength — spring return on mouseleave<br>
+    // body.hovering: expands outer cursor on interactive elements
+  </p>
+</div>
+
+<script>
+  const outer = document.getElementById('c-outer');
+  const dot   = document.getElementById('c-dot');
+  let mx = 0, my = 0, ox = 0, oy = 0;
+
+  // Dot: precise sync
+  document.addEventListener('mousemove', e => {
+    mx = e.clientX; my = e.clientY;
+    dot.style.left = mx + 'px'; dot.style.top = my + 'px';
+  });
+
+  // Outer: lagged lerp
+  function lerp(a, b, n) { return a + (b - a) * n; }
+  (function tick() {
+    ox = lerp(ox, mx, 0.12); oy = lerp(oy, my, 0.12);
+    outer.style.left = ox + 'px'; outer.style.top = oy + 'px';
+    requestAnimationFrame(tick);
+  })();
+
+  // Hover state toggle
+  const hoverEls = document.querySelectorAll('[data-magnetic], a, button, .big-link, .mag-btn');
+  hoverEls.forEach(el => {
+    el.addEventListener('mouseenter', () => document.body.classList.add('hovering'));
+    el.addEventListener('mouseleave', () => document.body.classList.remove('hovering'));
+  });
+
+  // Magnetic pull (T15)
+  document.querySelectorAll('[data-magnetic]').forEach(el => {
+    el.addEventListener('mousemove', e => {
+      const r  = el.getBoundingClientRect();
+      const dx = (e.clientX - r.left - r.width  / 2) * 0.4;
+      const dy = (e.clientY - r.top  - r.height / 2) * 0.4;
+      el.style.transform = `translate(${dx}px, ${dy}px)`;
+    });
+    el.addEventListener('mouseleave', () => {
+      el.style.transition = 'transform 0.55s cubic-bezier(.25,.46,.45,.94)';
+      el.style.transform  = 'translate(0, 0)';
+      setTimeout(() => el.style.transition = '', 560);
+    });
+  });
+</script>
+</body>
+</html>

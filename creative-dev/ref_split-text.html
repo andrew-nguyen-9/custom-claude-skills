@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>REF: Split Text — creative-dev T04 + T05</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root { --bg: #f7f4ef; --dark: #0a0a0a; --accent: #e8203a; }
+  body { background: var(--bg); color: var(--dark); font-family: Georgia, serif; }
+
+  .section { padding: 14vh 10vw; min-height: 100vh; display: flex; flex-direction: column;
+    justify-content: center; border-bottom: 1px solid rgba(0,0,0,.07); }
+  .label { font-family: 'Courier New', monospace; font-size: .6rem; letter-spacing: .25em;
+    text-transform: uppercase; color: var(--accent); margin-bottom: 3.5rem; }
+  .note { font-family: 'Courier New', monospace; font-size: .58rem; opacity: .28;
+    margin-top: 3rem; line-height: 1.9; }
+
+  /* T04: CHAR SPLIT — hero size */
+  .char-text {
+    font-size: clamp(3rem, 9.5vw, 9rem);
+    font-weight: 400; letter-spacing: -.03em; line-height: .95;
+    overflow: hidden; /* clips chars during animation */
+  }
+  /* Each .ch needs overflow hidden on parent */
+  .char-text .ch { display: inline-block; }  /* set by JS */
+  .char-text .sp { display: inline-block; width: .28em; }
+
+  /* T05: WORD SPLIT — medium heading */
+  .word-text { font-size: clamp(1.5rem, 4vw, 3.2rem); font-weight: 400;
+    line-height: 1.25; max-width: 22ch; }
+  .word-text .w-wrap  { display: inline-block; overflow: hidden; }
+  .word-text .w-inner { display: inline-block; transform: translateY(105%); }
+
+  /* T05: LINE REVEAL — body size */
+  .line-text { font-size: clamp(1rem, 2vw, 1.35rem); max-width: 48ch;
+    line-height: 1.65; color: rgba(10,10,10,.65); }
+  .line-text .line       { display: block; overflow: hidden; }
+  .line-text .line-inner { display: block; transform: translateY(102%); }
+</style>
+</head>
+<body>
+
+<!-- SECTION 1: T04 — char split, fires on page load -->
+<div class="section">
+  <div class="label">T04 — Character Split · load trigger · stagger 0.04s · rotate+translateY</div>
+  <div class="char-text" id="charText">The Work</div>
+  <div class="note">
+    // Manual split: textContent → array of .ch span + .sp space span<br>
+    // Parent overflow:hidden clips characters outside bounds during Y travel<br>
+    // gsap.from: y:'115%', rotation:10, stagger:.04, ease:'power4.out'
+  </div>
+</div>
+
+<!-- SECTION 2: T05 — word split, fires on scroll -->
+<div class="section">
+  <div class="label">T05 — Word Split · scroll trigger · stagger 0.06s · translateY from 105%</div>
+  <div class="word-text" id="wordText">Every word arrives on its own terms — scroll to witness.</div>
+  <div class="note">
+    // Each word: .w-wrap (overflow:hidden) + .w-inner (translateY starts 105%)<br>
+    // ScrollTrigger start: 'top 78%' · duration: 0.8s · ease: power3.out
+  </div>
+</div>
+
+<!-- SECTION 3: T05 — line reveal, fires on scroll -->
+<div class="section">
+  <div class="label">T05 — Line Reveal · scroll trigger · stagger 0.1s · split by sentence</div>
+  <div class="line-text" id="lineText">The best digital experiences are not built in a day. They emerge from the intersection of constraint and ambition. Motion is the language between states. Restraint is the rarest skill.</div>
+  <div class="note">
+    // Split by '. ' sentence boundary — each gets .line + .line-inner wrapper<br>
+    // ScrollTrigger start: 'top 78%' · stagger: 0.1 · ease: power3.out
+  </div>
+</div>
+
+<script>
+  gsap.registerPlugin(ScrollTrigger);
+
+  // --- SPLIT UTILITIES (no Splitting.js CDN needed) ---
+
+  function splitChars(el) {
+    // Wraps each char in .ch, spaces in .sp
+    el.innerHTML = el.textContent.split('').map(c =>
+      c === ' ' ? '<span class="sp"> </span>' : `<span class="ch">${c}</span>`
+    ).join('');
+  }
+
+  function splitWords(el) {
+    // Wraps each word in overflow-hidden .w-wrap + sliding .w-inner
+    el.innerHTML = el.textContent.trim().split(/\s+/).map(w =>
+      `<span class="w-wrap"><span class="w-inner">${w}</span></span>`
+    ).join(' ');
+  }
+
+  function splitLines(el) {
+    // Approximates lines by splitting on '. '
+    const sentences = el.textContent.split('. ');
+    el.innerHTML = sentences.map((s, i) =>
+      `<span class="line"><span class="line-inner">${s.trim()}${i < sentences.length - 1 ? '.' : ''}</span></span>`
+    ).join(' ');
+  }
+
+  // --- T04: CHARS — animate on page load ---
+  splitChars(document.getElementById('charText'));
+  gsap.from('#charText .ch', {
+    y: '115%', rotation: 10, opacity: 0,
+    stagger: .04, duration: .9, ease: 'power4.out', delay: .25
+  });
+
+  // --- T05: WORDS — animate on scroll ---
+  splitWords(document.getElementById('wordText'));
+  gsap.to('#wordText .w-inner', {
+    scrollTrigger: { trigger: '#wordText', start: 'top 78%' },
+    y: '0%', duration: .85, stagger: .06, ease: 'power3.out'
+  });
+
+  // --- T05: LINES — animate on scroll ---
+  splitLines(document.getElementById('lineText'));
+  gsap.to('#lineText .line-inner', {
+    scrollTrigger: { trigger: '#lineText', start: 'top 78%' },
+    y: '0%', duration: .85, stagger: .1, ease: 'power3.out'
+  });
+</script>
+</body>
+</html>
